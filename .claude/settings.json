@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Skill|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py",
+            "args": [
+              "-3",
+              ".claude/hooks/gate-code-review.py"
+            ],
+            "statusMessage": "V\u00e9rifie que /code-review est bien demand\u00e9"
+          }
+        ]
+      }
+    ]
+  }
+}
