@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlmodel import Session, select
 
 from mathutrice import models
-from mathutrice.fonctions_python.referentiel import REFERENTIEL
+from mathutrice.referentiel import REFERENTIEL
 
 DEMO_ACCOUNTS = (
     ("student.demo@epfedu.fr", "Student"),
