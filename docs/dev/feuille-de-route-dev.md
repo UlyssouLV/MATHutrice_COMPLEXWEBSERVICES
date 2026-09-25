@@ -16,7 +16,7 @@ Delivered. One importable `mathutrice` root package; imports no longer depend on
 
 ## B4 — Fix the one boundary violation
 
-The check is wired upstream. This version fixes its one violation.
+Delivered. The one remaining package-level import cycle (`fonctions_python` ↔ `lacune_evaluation`) is broken: `REFERENTIEL` moved to loose `mathutrice/referentiel.py`, `lacune_evaluation` imports it from there, and `check_cycles` is locked green by an automated test. Parent issue #14.
 
 ## Plus tard — The boundary check runs in CI
 
