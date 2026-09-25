@@ -17,6 +17,7 @@ from sqlmodel import SQLModel, select, delete
 from dotenv import load_dotenv
 from mathutrice.database import engine, get_session, Session
 from mathutrice.database import Session as DBSession
+from mathutrice.fonctions_python.catalogue_seed import seed_catalogue_if_empty
 from apscheduler.schedulers.background import BackgroundScheduler
 from decimal import Decimal
 from mathutrice import models
@@ -51,6 +52,8 @@ def get_referentiel():
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+    with DBSession(engine) as session:
+        seed_catalogue_if_empty(session)
 
 
 # ------------------------------------------------------------------
