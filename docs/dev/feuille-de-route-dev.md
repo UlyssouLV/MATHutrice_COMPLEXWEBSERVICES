@@ -12,7 +12,7 @@ Delivered. A first startup on an empty database provides the catalogue modules a
 
 ## B3 — Package it
 
-Already done upstream: one root package, and no imports that only work through the working directory or a `sys.path` patch.
+Delivered. One importable `mathutrice` root package; imports no longer depend on the working directory or a `sys.path` patch; automated tests lock those packaging criteria. Parent issue #11.
 
 ## B4 — Fix the one boundary violation
 
