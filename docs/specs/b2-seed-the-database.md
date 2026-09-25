@@ -1,6 +1,6 @@
 # B2 — Seed the database
 
-Spec issue: EPF-MDE/MATHutrice#56. Follows #20. Does not replace it.
+Spec issue: UlyssouLV/MATHutrice_COMPLEXWEBSERVICES#6. Recreated from EPF-MDE/MATHutrice#56. Follows EPF-MDE/MATHutrice#20. Does not replace it.
 
 ## Problem Statement
 
