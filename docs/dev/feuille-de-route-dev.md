@@ -4,7 +4,7 @@ Versions of this project run B1, B2, B3, B4. Docs are written in English.
 
 ## B1 — Make the README true
 
-Nothing else can be followed until the instructions for running MATHutrice are right. This version is issue #22: clean up the README after branch merges.
+Delivered. A newcomer can run MATHutrice from the root README: one description, how to start locally, the connexion de développement as shipped, and a link to the smoke test. Parent issue #3.
 
 ## B2 — Seed the database
 
