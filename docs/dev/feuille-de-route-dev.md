@@ -8,7 +8,7 @@ Delivered. A newcomer can run MATHutrice from the root README: one description, 
 
 ## B2 — Seed the database
 
-A MATHutrice that runs on an empty database shows nothing to check changes against.
+Delivered. A first startup on an empty database provides the catalogue modules and, when `AUTH_MODE=dev`, the three demo accounts. The smoke test matches that first startup. Parent issue #6.
 
 ## B3 — Package it
 
