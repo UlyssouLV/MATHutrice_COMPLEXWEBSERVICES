@@ -17,7 +17,10 @@ from sqlmodel import SQLModel, select, delete
 from dotenv import load_dotenv
 from mathutrice.database import engine, get_session, Session
 from mathutrice.database import Session as DBSession
-from mathutrice.fonctions_python.catalogue_seed import seed_catalogue_if_empty
+from mathutrice.fonctions_python.catalogue_seed import (
+    name_from_email,
+    seed_catalogue_if_empty,
+)
 from apscheduler.schedulers.background import BackgroundScheduler
 from decimal import Decimal
 from mathutrice import models
@@ -53,7 +56,7 @@ def get_referentiel():
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
     with DBSession(engine) as session:
-        seed_catalogue_if_empty(session)
+        seed_catalogue_if_empty(session, auth_mode=AUTH_MODE)
 
 
 # ------------------------------------------------------------------
@@ -341,11 +344,6 @@ async def login(request: Request):
 
 
 DEV_ROLES = {"student": "Student", "teacher": "Teacher", "admin": "Admin"}
-
-
-def name_from_email(email: str) -> str:
-    local_part = email.split("@")[0]
-    return local_part.replace(".", " ").replace("_", " ").title()
 
 
 async def dev_login_page(

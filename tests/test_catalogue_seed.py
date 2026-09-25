@@ -1,6 +1,7 @@
 """Startup catalogue fill on a temporary database. Does not start the server."""
 
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -178,12 +179,20 @@ def _session(tmp_path: Path):
     return engine
 
 
+DEMO_ACCOUNTS = (
+    ("student.demo@epfedu.fr", "Student", "Student Demo"),
+    ("teacher.demo@epf.fr", "Teacher", "Teacher Demo"),
+    ("admin.demo@epf.fr", "Admin", "Admin Demo"),
+)
+
+
 def _rows(engine):
     with Session(engine) as session:
         notions = session.exec(select(models.Notion)).all()
         competences = session.exec(select(models.Competence)).all()
         marks = session.exec(select(models.Progression)).all()
-    return notions, competences, marks
+        users = session.exec(select(models.User)).all()
+    return notions, competences, marks, users
 
 
 def test_empty_database_receives_the_catalogue(tmp_path):
@@ -191,7 +200,7 @@ def test_empty_database_receives_the_catalogue(tmp_path):
     with Session(engine) as session:
         seed_catalogue_if_empty(session)
 
-    notions, competences, marks = _rows(engine)
+    notions, competences, marks, _users = _rows(engine)
     by_key = {notion.referentiel_key: notion for notion in notions}
     assert set(by_key) == set(EXPECTED)
 
@@ -229,15 +238,16 @@ def test_existing_notion_is_left_unchanged(tmp_path):
             )
         )
         session.commit()
-        seed_catalogue_if_empty(session)
+        seed_catalogue_if_empty(session, auth_mode="dev")
 
-    notions, competences, marks = _rows(engine)
+    notions, competences, marks, users = _rows(engine)
     assert len(notions) == 1
     assert notions[0].notion_id == kept_id
     assert notions[0].referentiel_key == "deja_la"
     assert notions[0].title == "Déjà là"
     assert competences == []
     assert marks == []
+    assert users == []
 
 
 def test_failure_in_the_middle_leaves_the_database_unchanged(tmp_path):
@@ -258,7 +268,7 @@ def test_failure_in_the_middle_leaves_the_database_unchanged(tmp_path):
         with pytest.raises(Exception, match="mid-seed failure"):
             seed_catalogue_if_empty(session)
 
-    notions, competences, marks = _rows(engine)
+    notions, competences, marks, _users = _rows(engine)
     assert notions == []
     assert competences == []
     assert marks == []
@@ -269,6 +279,58 @@ def test_failure_in_the_middle_leaves_the_database_unchanged(tmp_path):
     with Session(engine) as session:
         seed_catalogue_if_empty(session)
 
-    notions, competences, _marks = _rows(engine)
+    notions, competences, _marks, _users = _rows(engine)
     assert {notion.referentiel_key for notion in notions} == set(EXPECTED)
     assert len(competences) == sum(len(item["competences"]) for item in EXPECTED.values())
+
+
+def test_dev_mode_creates_the_three_demo_accounts(tmp_path):
+    engine = _session(tmp_path)
+    with Session(engine) as session:
+        seed_catalogue_if_empty(session, auth_mode="dev")
+
+    notions, _competences, marks, users = _rows(engine)
+    assert {notion.referentiel_key for notion in notions} == set(EXPECTED)
+    assert marks == []
+    stored = {(user.email, user.role, user.name) for user in users}
+    assert stored == set(DEMO_ACCOUNTS)
+
+
+def test_entra_mode_does_not_create_demo_accounts(tmp_path):
+    engine = _session(tmp_path)
+    with Session(engine) as session:
+        seed_catalogue_if_empty(session, auth_mode="entra")
+
+    notions, _competences, _marks, users = _rows(engine)
+    assert {notion.referentiel_key for notion in notions} == set(EXPECTED)
+    assert users == []
+
+
+def test_existing_email_is_left_as_it_is(tmp_path):
+    engine = _session(tmp_path)
+    kept_id = uuid.uuid4()
+    with Session(engine) as session:
+        session.add(
+            models.User(
+                sso_id=kept_id,
+                email="student.demo@epfedu.fr",
+                name="Déjà là",
+                role="Teacher",
+                created_at=datetime(2020, 1, 1),
+            )
+        )
+        session.commit()
+        seed_catalogue_if_empty(session, auth_mode="dev")
+
+    _notions, _competences, marks, users = _rows(engine)
+    by_email = {user.email: user for user in users}
+    kept = by_email["student.demo@epfedu.fr"]
+    assert kept.sso_id == kept_id
+    assert kept.name == "Déjà là"
+    assert kept.role == "Teacher"
+    assert by_email["teacher.demo@epf.fr"].role == "Teacher"
+    assert by_email["teacher.demo@epf.fr"].name == "Teacher Demo"
+    assert by_email["admin.demo@epf.fr"].role == "Admin"
+    assert by_email["admin.demo@epf.fr"].name == "Admin Demo"
+    assert len(users) == 3
+    assert marks == []
