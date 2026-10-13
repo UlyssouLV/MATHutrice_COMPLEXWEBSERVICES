@@ -2454,6 +2454,17 @@ async def get_recommendations_endpoint(
 
 
 # ------------------------------------------------------------------
+# TEMP — preuve PostHog exception autocapture (Lab 3)
+# ------------------------------------------------------------------
+
+
+@app.get("/dev/crash")
+async def temp_uncaught_exception_proof():
+    """Route temporaire : lève une exception non catchée pour PostHog autocapture."""
+    raise RuntimeError("Lab3 PostHog exception autocapture proof")
+
+
+# ------------------------------------------------------------------
 # Run app
 # ------------------------------------------------------------------
 
