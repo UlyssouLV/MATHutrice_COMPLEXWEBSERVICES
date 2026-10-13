@@ -16,21 +16,24 @@ jobs:
     name: architecture
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      # Full commit SHA: SonarCloud githubactions:S7637
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Pinned to a full version: setup-uv publishes no floating `v10` tag.
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
 
       # uv installs the interpreter pinned in .python-version itself, so there
       # is no separate Python setup step to keep in sync with it. The dev group,
       # which is where tach lives, is part of a default sync.
-      - run: uv sync
+      # --locked: uv.lock only (S8544). --no-build: no third-party sdists (S8541).
+      # --no-binary-package mathutrice: still build the local editable package.
+      - run: uv sync --locked --no-build --no-binary-package mathutrice
 
       # scripts/check_cycles.py reads the real import graph from `tach map`, and
       # both commands expect the directory holding tach.toml -- the checkout
       # root, which is where a step starts.
-      - run: uv run tach check
+      - run: uv run --locked --no-build --no-binary-package mathutrice tach check
 
-      - run: uv run python scripts/check_cycles.py
+      - run: uv run --locked --no-build --no-binary-package mathutrice python scripts/check_cycles.py
