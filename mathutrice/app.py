@@ -890,7 +890,8 @@ async def module_page(
 
     try:
         notion_uuid = uuid.UUID(id)
-    except ValueError:
+    except ValueError as e:
+        report_caught_exception(e)
         return HTMLResponse(
             "<h2>Identifiant de module invalide</h2>",
             status_code=400,
@@ -1267,6 +1268,7 @@ async def chat_complete_endpoint(data: ChatRequest):
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=500,
             content={
@@ -1398,6 +1400,7 @@ async def reset_session_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": str(e)},
@@ -1463,6 +1466,7 @@ async def check_session(
     try:
         first = is_first_session(notion_key, sso_id, session)
     except ValueError as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=400,
             content={"ok": False, "error": str(e)},
@@ -1515,9 +1519,11 @@ async def positioning_endpoint(
         return {"ok": True, **result}
 
     except ValueError as e:
+        report_caught_exception(e)
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
@@ -1552,9 +1558,11 @@ async def next_question_endpoint(
         return {"ok": True, **result}
 
     except ValueError as e:
+        report_caught_exception(e)
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
@@ -1596,6 +1604,7 @@ async def submit_answer_endpoint(
         return {"ok": True, "new_scores": result}
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
@@ -1667,6 +1676,7 @@ async def get_scores_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": str(e)},
@@ -1731,7 +1741,8 @@ async def save_session_history_endpoint(
                 started_at = datetime.fromisoformat(
                     data.started_at.replace("Z", "+00:00")
                 ).replace(tzinfo=None)
-            except Exception:
+            except Exception as e:
+                report_caught_exception(e)
                 started_at = None
 
         row = models.SessionHistory(
@@ -1761,6 +1772,7 @@ async def save_session_history_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": str(e)},
@@ -1838,6 +1850,7 @@ async def get_session_history_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": str(e)},
@@ -1874,6 +1887,7 @@ async def evaluate_qro_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
@@ -2059,6 +2073,7 @@ async def feedback_endpoint(
                         break
 
             except Exception as reco_err:
+                report_caught_exception(reco_err)
                 print("Reco error:", reco_err)
 
         return {
@@ -2069,6 +2084,7 @@ async def feedback_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         print("FEEDBACK ERROR:", traceback.format_exc())
 
         return JSONResponse(
@@ -2166,6 +2182,7 @@ async def next_targeted_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         print("NEXT_TARGETED ERROR:", traceback.format_exc())
 
         return JSONResponse(
@@ -2243,6 +2260,7 @@ async def mark_training_started(
         return {"ok": True}
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": str(e)},
@@ -2346,6 +2364,7 @@ async def evaluation_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
@@ -2427,6 +2446,7 @@ async def get_recommendations_endpoint(
         }
 
     except Exception as e:
+        report_caught_exception(e)
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": str(e)},
