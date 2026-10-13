@@ -116,6 +116,45 @@ The first call answers `303` with a `Set-Cookie: session=…`. `role` is
 user's name, or one derived from the address. Add `-d 'key=…'` when
 `DEV_LOGIN_KEY` is set.
 
+## Deploying on Azure App Service
+
+`.github/workflows/architecture.yml` deploys the default branch `Lab_3` to
+**Fork staging** on a green Architecture Check. The App Service app is on the
+B1 plan in the resource group created for this fork, always on. Staging holds
+generated data and no real users, so it signs in through the
+[connexion de développement](#connexion-de-développement-auth_modedev), with its
+own `DEV_LOGIN_KEY` and its own `SESSION_SECRET`, and keeps SQLite.
+
+- **Staging, on green.** A push to `Lab_3` whose `architecture` job passes is
+  built into one image, tagged with its commit and pushed to GHCR
+  (`ghcr.io/ulyssoulv/mathutrice_complexwebservices:<commit>`), then deployed to
+  staging. The image also holds its commit as `REVISION`, which the application
+  sends back in the `X-Revision` header of every response. The deploy passes
+  only once `/dev/login` answers `200` with that commit, so a previous container
+  that is still answering does not count.
+- **Production, by promotion only.** Added in Lab 3 step 3: a hand-started run
+  deploys staging's last green image to production, and builds nothing.
+
+Each environment's Azure variables and secrets live in the GitHub Environment of
+the same name, never in a committed file. Every deploy writes the app settings
+(`.github/actions/deploy-to-app-service`), with `AUTH_MODE=dev`,
+`DATABASE_URL=sqlite:///./mathutrice.db`, `LLM_BASE_URL` and `LLM_MODEL` as
+constants, and the secrets `SESSION_SECRET`, `DEV_LOGIN_KEY` and `LLM_API_KEY`.
+The workflow logs in to Azure through OpenID Connect and stores no Azure
+password.
+
+### Known limits
+
+- **The data is reset at every deploy and at every restart the platform
+  makes.** The SQLite file lives on the container's own disk, not on App
+  Service's lasting storage: `/home` is a network share on which SQLite cannot
+  take its locks. On start, `seed.py` creates the tables and inserts the notions
+  and the demonstration accounts again, so everything written since the last
+  start is lost: scores, progressions, and the PDFs teachers uploaded.
+- **Staging and production share one Mistral account, and so does a local run
+  with the same key.** Both environments hold the same `LLM_API_KEY`, so they
+  spend one account's rate limit and quota.
+
 ## Layout
 
 ```
