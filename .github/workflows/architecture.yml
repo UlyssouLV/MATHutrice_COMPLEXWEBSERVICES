@@ -55,10 +55,54 @@ jobs:
 
       - run: uv run --locked --no-build --no-binary-package mathutrice python scripts/check_cycles.py
 
-  # On a push to Lab_3 alone, once `architecture` has passed.
+  # Wait for the SonarCloud GitHub check on this commit. Deploy must not run
+  # while the Quality Gate is red (or still running).
+  sonar-gate:
+    name: sonar quality gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/Lab_3'
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+    steps:
+      - name: Wait until SonarCloud Code Analysis passes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          limit=600
+          start=$(date +%s)
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            row=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" --paginate \
+              --jq '.check_runs[] | select(.name == "SonarCloud Code Analysis") | "\(.status) \(.conclusion // "-")"')
+            if [ -z "$row" ]; then
+              echo "${elapsed}s: SonarCloud check not reported yet"
+            else
+              # Last matching check run wins if several appear.
+              status=$(echo "$row" | tail -n1 | awk '{print $1}')
+              conclusion=$(echo "$row" | tail -n1 | awk '{print $2}')
+              echo "${elapsed}s: SonarCloud status=$status conclusion=$conclusion"
+              if [ "$status" = completed ]; then
+                if [ "$conclusion" = success ]; then
+                  exit 0
+                fi
+                echo "SonarCloud Quality Gate failed (conclusion=$conclusion)" >&2
+                exit 1
+              fi
+            fi
+            if [ "$elapsed" -ge "$limit" ]; then
+              echo "SonarCloud check did not complete within ${limit}s" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+
+  # On a push to Lab_3 alone, once architecture and Sonar Quality Gate passed.
   deploy-staging:
     name: deploy to staging
-    needs: architecture
+    needs: [architecture, sonar-gate]
     if: github.event_name == 'push' && github.ref == 'refs/heads/Lab_3'
     runs-on: ubuntu-latest
     permissions:

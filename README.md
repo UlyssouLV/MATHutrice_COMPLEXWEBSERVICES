@@ -125,13 +125,14 @@ generated data and no real users, so it signs in through the
 [connexion de développement](#connexion-de-développement-auth_modedev), with its
 own `DEV_LOGIN_KEY` and its own `SESSION_SECRET`, and keeps SQLite.
 
-- **Staging, on green.** A push to `Lab_3` whose `architecture` job passes is
-  built into one image, tagged with its commit and pushed to GHCR
+- **Staging, on green.** A push to `Lab_3` whose `architecture` job **and**
+  SonarCloud Quality Gate both pass is built into one image, tagged with its
+  commit and pushed to GHCR
   (`ghcr.io/ulyssoulv/mathutrice_complexwebservices:<commit>`), then deployed to
   staging. The image also holds its commit as `REVISION`, which the application
   sends back in the `X-Revision` header of every response. The deploy passes
   only once `/dev/login` answers `200` with that commit, so a previous container
-  that is still answering does not count.
+  that is still answering does not count. A red Sonar gate skips the deploy.
 - **Production, by promotion only.** A run of the workflow started by hand reads
   the workflow's push runs on `Lab_3`, newest first, and deploys the image of
   the first whose `deploy to staging` job passed to production. It never builds

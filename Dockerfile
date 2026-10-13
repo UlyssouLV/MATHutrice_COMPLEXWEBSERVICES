@@ -24,10 +24,12 @@ WORKDIR /app
 # rebuilds only the last layers. The dev group, which is where tach lives, is
 # left out.
 COPY pyproject.toml uv.lock .python-version ./
-RUN uv sync --locked --no-dev --no-install-project
+# --no-build: block third-party sdist setup scripts (SonarCloud docker:S8541).
+# --no-binary-package mathutrice: still build the local editable package.
+RUN uv sync --locked --no-dev --no-install-project --no-build --no-binary-package mathutrice
 
 COPY mathutrice ./mathutrice
-RUN uv sync --locked --no-dev
+RUN uv sync --locked --no-dev --no-build --no-binary-package mathutrice
 
 # The application writes in two places at run time: uploaded PDFs in
 # mathutrice/rag_documents, and the SQLite file when DATABASE_URL points at one
