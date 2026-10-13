@@ -27,6 +27,15 @@ inputs:
   llm-api-key:
     description: LLM_API_KEY, the key for the LLM endpoint.
     required: true
+  posthog-project-token:
+    description: POSTHOG_PROJECT_TOKEN.
+    required: true
+  posthog-host:
+    description: POSTHOG_HOST.
+    required: true
+  posthog-environment:
+    description: POSTHOG_ENVIRONMENT, the environment's name in PostHog.
+    required: true
 
 runs:
   using: composite
@@ -46,6 +55,9 @@ runs:
         SESSION_SECRET: ${{ inputs.session-secret }}
         DEV_LOGIN_KEY: ${{ inputs.dev-login-key }}
         LLM_API_KEY: ${{ inputs.llm-api-key }}
+        POSTHOG_PROJECT_TOKEN: ${{ inputs.posthog-project-token }}
+        POSTHOG_HOST: ${{ inputs.posthog-host }}
+        POSTHOG_ENVIRONMENT: ${{ inputs.posthog-environment }}
       run: |
         az webapp config appsettings set \
           --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --output none \
@@ -58,7 +70,10 @@ runs:
             LLM_MODEL=ministral-14b-latest \
             "SESSION_SECRET=$SESSION_SECRET" \
             "DEV_LOGIN_KEY=$DEV_LOGIN_KEY" \
-            "LLM_API_KEY=$LLM_API_KEY"
+            "LLM_API_KEY=$LLM_API_KEY" \
+            "POSTHOG_PROJECT_TOKEN=$POSTHOG_PROJECT_TOKEN" \
+            "POSTHOG_HOST=$POSTHOG_HOST" \
+            "POSTHOG_ENVIRONMENT=$POSTHOG_ENVIRONMENT"
 
     # The image is public on GHCR, so the app pulls it without credentials.
     - name: Run the image

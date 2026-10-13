@@ -23,9 +23,16 @@ from mathutrice import models
 from mathutrice.referentiel import REFERENTIEL
 from mathutrice.seed import seed_missing
 import msal
+import posthog
+from posthog import Posthog
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry.sdk.resources import Resource
 import uvicorn
 import shutil
 import os
+import logging
 import uuid
 import json
 import hmac
@@ -83,8 +90,89 @@ def cleanup_old_conversations():
         session.commit()
 
 
+# ------------------------------------------------------------------
+# Production signals — PostHog, off unless POSTHOG_PROJECT_TOKEN is set
+# ------------------------------------------------------------------
+
+posthog_client = None
+
+# Only the application's own records are exported. HTTP libraries log every
+# request with its full URL, and some LLM endpoints carry a secret in their URL
+# path; a list of their logger names missed httpx2 once, so third-party records
+# stay local, whatever their logger.
+_is_exportable = logging.Filter("mathutrice")
+
+
+def start_production_signals():
+    """Starts PostHog error tracking and log forwarding.
+
+    Returns the PostHog client and the log provider, or (None, None) when
+    POSTHOG_PROJECT_TOKEN is unset.
+    """
+    token = (os.getenv("POSTHOG_PROJECT_TOKEN") or "").strip()
+
+    if not token:
+        return None, None
+
+    host = (os.getenv("POSTHOG_HOST") or "").strip().rstrip("/")
+    environment = (os.getenv("POSTHOG_ENVIRONMENT") or "").strip()
+
+    if not host:
+        raise ValueError("POSTHOG_HOST missing")
+
+    if not environment:
+        raise ValueError("POSTHOG_ENVIRONMENT missing")
+
+    client = Posthog(
+        token,
+        host=host,
+        enable_exception_autocapture=True,
+        super_properties={"environment": environment},
+    )
+
+    provider = LoggerProvider(
+        resource=Resource.create(
+            {
+                "service.name": "mathutrice",
+                "deployment.environment": environment,
+            }
+        )
+    )
+    provider.add_log_record_processor(
+        BatchLogRecordProcessor(
+            OTLPLogExporter(
+                endpoint=f"{host}/i/v1/logs",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        )
+    )
+    handler = LoggingHandler(logger_provider=provider)
+    handler.addFilter(_is_exportable)
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    root.addHandler(handler)
+
+    return client, provider
+
+
+def report_caught_exception(exception):
+    """Reports an exception the code catches and answers for itself.
+
+    The request's context captures only an exception that leaves it, so one
+    caught on the way never reaches Error tracking unless it is reported here.
+    The report carries the context's identity, like any other. Does nothing
+    when POSTHOG_PROJECT_TOKEN is unset.
+    """
+    if posthog_client:
+        posthog_client.capture_exception(exception)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global posthog_client
+
+    posthog_client, log_provider = start_production_signals()
+
     create_db_and_tables()
     seed_missing(engine)
 
@@ -95,6 +183,12 @@ async def lifespan(app: FastAPI):
     yield
 
     scheduler.shutdown()
+
+    if posthog_client:
+        posthog_client.shutdown()
+
+    if log_provider:
+        log_provider.shutdown()
 
 
 # ------------------------------------------------------------------
@@ -163,6 +257,23 @@ from mathutrice.fonctions_python.type_questions.qro_generator import (  # noqa: 
 from mathutrice.lacune_evaluation.LLM_as_Evaluator import (  # noqa: E402
     diagnostiquer_depuis_competence,
 )
+
+
+# Added before SessionMiddleware, so it runs inside it and reads the session.
+# An exception leaving the context is captured, then raised again.
+@app.middleware("http")
+async def posthog_context(request: Request, call_next):
+    if not posthog_client:
+        return await call_next(request)
+
+    with posthog.new_context(client=posthog_client):
+        user = request.session.get("user")
+
+        if user and user.get("email"):
+            posthog.identify_context(user["email"])
+
+        return await call_next(request)
+
 
 app.add_middleware(
         SessionMiddleware,
@@ -1083,7 +1194,9 @@ async def chat_stream_endpoint(
     full_response = []
 
     def generate():
-        for chunk in chat_stream_with_history(history):
+        for chunk in chat_stream_with_history(
+            history, report_failure=report_caught_exception
+        ):
             full_response.append(chunk)
             yield f"data: {chunk}\n\n"
 
